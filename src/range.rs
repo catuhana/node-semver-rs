@@ -45,15 +45,15 @@ impl BoundSet {
     }
 
     fn at_least(p: Predicate) -> Option<Self> {
-        BoundSet::new(Bound::Lower(p), Bound::upper())
+        Self::new(Bound::Lower(p), Bound::upper())
     }
 
     fn at_most(p: Predicate) -> Option<Self> {
-        BoundSet::new(Bound::lower(), Bound::Upper(p))
+        Self::new(Bound::lower(), Bound::Upper(p))
     }
 
     fn exact(version: Version) -> Option<Self> {
-        BoundSet::new(
+        Self::new(
             Bound::Lower(Predicate::Including(version.clone())),
             Bound::Upper(Predicate::Including(version)),
         )
@@ -124,11 +124,11 @@ impl BoundSet {
         true
     }
 
-    fn allows_all(&self, other: &BoundSet) -> bool {
+    fn allows_all(&self, other: &Self) -> bool {
         self.lower <= other.lower && other.upper <= self.upper
     }
 
-    fn allows_any(&self, other: &BoundSet) -> bool {
+    fn allows_any(&self, other: &Self) -> bool {
         if other.upper < self.lower {
             return false;
         }
@@ -144,7 +144,7 @@ impl BoundSet {
         let lower = std::cmp::max(&self.lower, &other.lower);
         let upper = std::cmp::min(&self.upper, &other.upper);
 
-        BoundSet::new(lower.clone(), upper.clone())
+        Self::new(lower.clone(), upper.clone())
     }
 
     fn difference(&self, other: &Self) -> Option<Vec<Self>> {
@@ -157,20 +157,17 @@ impl BoundSet {
 
             if self.lower < overlap.lower && overlap.upper < self.upper {
                 return Some(vec![
-                    BoundSet::new(self.lower.clone(), Upper(overlap.lower.predicate().flip()))
-                        .unwrap(),
-                    BoundSet::new(Lower(overlap.upper.predicate().flip()), self.upper.clone())
-                        .unwrap(),
+                    Self::new(self.lower.clone(), Upper(overlap.lower.predicate().flip())).unwrap(),
+                    Self::new(Lower(overlap.upper.predicate().flip()), self.upper.clone()).unwrap(),
                 ]);
             }
 
             if self.lower < overlap.lower {
-                return BoundSet::new(self.lower.clone(), Upper(overlap.lower.predicate().flip()))
+                return Self::new(self.lower.clone(), Upper(overlap.lower.predicate().flip()))
                     .map(|f| vec![f]);
             }
 
-            BoundSet::new(Lower(overlap.upper.predicate().flip()), self.upper.clone())
-                .map(|f| vec![f])
+            Self::new(Lower(overlap.upper.predicate().flip()), self.upper.clone()).map(|f| vec![f])
         } else {
             Some(vec![self.clone()])
         }
@@ -231,12 +228,12 @@ enum Bound {
 }
 
 impl Bound {
-    fn upper() -> Self {
-        Bound::Upper(Predicate::Unbounded)
+    const fn upper() -> Self {
+        Self::Upper(Predicate::Unbounded)
     }
 
-    fn lower() -> Self {
-        Bound::Lower(Predicate::Unbounded)
+    const fn lower() -> Self {
+        Self::Lower(Predicate::Unbounded)
     }
 
     fn predicate(self) -> Predicate {
@@ -389,7 +386,7 @@ impl Range {
     /**
     Returns true if `other` is a strict superset of this range.
     */
-    pub fn allows_all(&self, other: &Range) -> bool {
+    pub fn allows_all(&self, other: &Self) -> bool {
         for this in &self.0 {
             for that in &other.0 {
                 if this.allows_all(that) {
@@ -404,7 +401,7 @@ impl Range {
     /**
     Returns true if `other` has overlap with this range.
     */
-    pub fn allows_any(&self, other: &Range) -> bool {
+    pub fn allows_any(&self, other: &Self) -> bool {
         for this in &self.0 {
             for that in &other.0 {
                 if this.allows_any(that) {
@@ -511,7 +508,7 @@ impl fmt::Display for Range {
 impl std::str::FromStr for Range {
     type Err = SemverError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Range::parse(s)
+        Self::parse(s)
     }
 }
 
@@ -849,7 +846,7 @@ struct Partial {
 
 impl From<Partial> for Version {
     fn from(partial: Partial) -> Self {
-        Version {
+        Self {
             major: partial.major.unwrap_or(0),
             minor: partial.minor.unwrap_or(0),
             patch: partial.patch.unwrap_or(0),

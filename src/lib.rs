@@ -83,12 +83,12 @@ impl SemverError {
     }
 
     /// Returns the SourceSpan of the error.
-    pub fn span(&self) -> &SourceSpan {
+    pub const fn span(&self) -> &SourceSpan {
         &self.span
     }
 
     /// Returns the (0-based) byte offset where the parsing error happened.
-    pub fn offset(&self) -> usize {
+    pub const fn offset(&self) -> usize {
         self.span.offset()
     }
 
@@ -96,7 +96,7 @@ impl SemverError {
     ///
     /// This value can also be fetched through [std::error::Error::source],
     /// but that would require downcasting to match types.
-    pub fn kind(&self) -> &SemverErrorKind {
+    pub const fn kind(&self) -> &SemverErrorKind {
         &self.kind
     }
 
@@ -180,8 +180,6 @@ pub enum SemverErrorKind {
     #[diagnostic(code(node_semver::parse_component_error), url(docsrs))]
     Context(&'static str),
 
-    /**
-     */
     #[error("No valid ranges could be parsed")]
     #[diagnostic(code(node_semver::no_valid_ranges), url(docsrs), help("node-semver parses in so-called 'loose' mode. This means that if you have a slightly incorrect semver operator (`>=1.y`, for ex.), it will get thrown away. This error only happens if _all_ your input ranges were invalid semver in this way."))]
     NoValidRanges,
@@ -223,12 +221,8 @@ impl<I> ContextError<I> for SemverParseError<I> {
     }
 }
 
-impl<'a> FromExternalError<&'a str, SemverParseError<&'a str>> for SemverParseError<&'a str> {
-    fn from_external_error(
-        _input: &'a str,
-        _kind: ErrorKind,
-        e: SemverParseError<&'a str>,
-    ) -> Self {
+impl<'a> FromExternalError<&'a str, Self> for SemverParseError<&'a str> {
+    fn from_external_error(_input: &'a str, _kind: ErrorKind, e: Self) -> Self {
         e
     }
 }
@@ -247,8 +241,8 @@ pub enum Identifier {
 impl fmt::Display for Identifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Identifier::Numeric(n) => write!(f, "{}", n),
-            Identifier::AlphaNumeric(s) => write!(f, "{}", s),
+            Self::Numeric(n) => write!(f, "{}", n),
+            Self::AlphaNumeric(s) => write!(f, "{}", s),
         }
     }
 }
@@ -277,7 +271,7 @@ impl Version {
     }
 
     /// Parse a semver string into a [Version].
-    pub fn parse<S: AsRef<str>>(input: S) -> Result<Version, SemverError> {
+    pub fn parse<S: AsRef<str>>(input: S) -> Result<Self, SemverError> {
         let input = input.as_ref();
 
         if input.len() > MAX_LENGTH {
@@ -395,7 +389,7 @@ impl fmt::Display for Version {
 
 impl std::convert::From<(u64, u64, u64)> for Version {
     fn from((major, minor, patch): (u64, u64, u64)) -> Self {
-        Version {
+        Self {
             major,
             minor,
             patch,
@@ -407,14 +401,15 @@ impl std::convert::From<(u64, u64, u64)> for Version {
 
 impl std::str::FromStr for Version {
     type Err = SemverError;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Version::parse(s)
+        Self::parse(s)
     }
 }
 
 impl std::convert::From<(u64, u64, u64, u64)> for Version {
     fn from((major, minor, patch, pre_release): (u64, u64, u64, u64)) -> Self {
-        Version {
+        Self {
             major,
             minor,
             patch,
@@ -425,13 +420,13 @@ impl std::convert::From<(u64, u64, u64, u64)> for Version {
 }
 
 impl cmp::PartialOrd for Version {
-    fn partial_cmp(&self, other: &Version) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl cmp::Ord for Version {
-    fn cmp(&self, other: &Version) -> cmp::Ordering {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
         match self.major.cmp(&other.major) {
             Ordering::Equal => {}
             //if difference in major version, just return result
@@ -509,10 +504,7 @@ fn extras(
             map(pre_release, Extras::Release),
             map(build, Extras::Build),
         ))),
-        |extras| match extras {
-            Some(extras) => extras.values(),
-            _ => Default::default(),
-        },
+        |extras| extras.map_or_else(Default::default, |extras| extras.values()),
     )(input)
 }
 
