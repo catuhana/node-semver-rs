@@ -4,7 +4,6 @@ use std::cmp::{self, Ordering};
 use std::fmt;
 use std::num::ParseIntError;
 
-use miette::{Diagnostic, SourceSpan};
 use thiserror::Error;
 
 use nom::branch::alt;
@@ -18,6 +17,9 @@ use nom::sequence::{preceded, tuple};
 use nom::{Err, IResult};
 
 pub use range::*;
+
+#[cfg(feature = "diagnostics")]
+use miette::{Diagnostic, LabeledSpan, Severity, SourceCode, SourceSpan};
 
 #[cfg(feature = "serde")]
 mod serde;
@@ -43,16 +45,18 @@ a more specific [SemverErrorKind].
 #[error("{kind}")]
 pub struct SemverError {
     input: String,
+    #[cfg(feature = "diagnostics")]
     span: SourceSpan,
     kind: SemverErrorKind,
 }
 
+#[cfg(feature = "diagnostics")]
 impl Diagnostic for SemverError {
     fn code<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
         self.kind().code()
     }
 
-    fn severity(&self) -> Option<miette::Severity> {
+    fn severity(&self) -> Option<Severity> {
         self.kind().severity()
     }
 
@@ -64,14 +68,15 @@ impl Diagnostic for SemverError {
         self.kind().url()
     }
 
-    fn source_code(&self) -> Option<&dyn miette::SourceCode> {
+    fn source_code(&self) -> Option<&dyn SourceCode> {
         Some(&self.input)
     }
 
-    fn labels(&self) -> Option<Box<dyn Iterator<Item = miette::LabeledSpan> + '_>> {
-        Some(Box::new(std::iter::once(
-            miette::LabeledSpan::new_with_span(Some("here".into()), *self.span()),
-        )))
+    fn labels(&self) -> Option<Box<dyn Iterator<Item = LabeledSpan> + '_>> {
+        Some(Box::new(std::iter::once(LabeledSpan::new_with_span(
+            Some("here".into()),
+            *self.span(),
+        ))))
     }
 }
 
@@ -81,11 +86,13 @@ impl SemverError {
         &self.input
     }
 
+    #[cfg(feature = "diagnostics")]
     /// Returns the SourceSpan of the error.
     pub const fn span(&self) -> &SourceSpan {
         &self.span
     }
 
+    #[cfg(feature = "diagnostics")]
     /// Returns the (0-based) byte offset where the parsing error happened.
     pub const fn offset(&self) -> usize {
         self.span.offset()
@@ -99,6 +106,7 @@ impl SemverError {
         &self.kind
     }
 
+    #[cfg(feature = "diagnostics")]
     /// Returns the (0-indexed) line and column number where the parsing error
     /// happened.
     pub fn location(&self) -> (usize, usize) {
@@ -131,6 +139,7 @@ impl SemverError {
     }
 }
 
+#[cfg(feature = "diagnostics")]
 /**
 The specific kind of error that occurred. Usually wrapped in a [SemverError].
 */
@@ -189,6 +198,61 @@ pub enum SemverErrorKind {
     */
     #[error("An unspecified error occurred.")]
     #[diagnostic(code(node_semver::other), url(docsrs))]
+    Other,
+}
+
+#[cfg(not(feature = "diagnostics"))]
+/**
+The specific kind of error that occurred. Usually wrapped in a [SemverError].
+*/
+#[derive(Debug, Clone, Error, Eq, PartialEq)]
+pub enum SemverErrorKind {
+    /**
+    Semver strings overall can't be longer than [MAX_LENGTH]. This is a
+    restriction coming from the JavaScript `node-semver`.
+    */
+    #[error("Semver string can't be longer than {} characters.", MAX_LENGTH)]
+    MaxLengthError,
+
+    /**
+    Input to `node-semver` must be "complete". That is, a version must be
+    composed of major, minor, and patch segments, with optional prerelease
+    and build metadata. If you're looking for alternative syntaxes, like `1.2`,
+    that are meant for defining semver ranges, use [Range] instead.
+    */
+    #[error("Incomplete input to semver parser.")]
+    IncompleteInput,
+
+    /**
+    Components of a semver string (major, minor, patch, integer sections of
+    build and prerelease) must all be valid, parseable integers. This error
+    occurs when Rust's own integer parsing failed.
+    */
+    #[error("Failed to parse an integer component of a semver string: {0}")]
+    ParseIntError(ParseIntError),
+
+    /**
+    `node-semver` inherits the JavaScript implementation's limitation on
+    limiting integer component sizes to [MAX_SAFE_INTEGER].
+    */
+    #[error("Integer component of semver string is larger than JavaScript's Number.MAX_SAFE_INTEGER: {0}")]
+    MaxIntError(u64),
+
+    /**
+    This is a generic error that a certain component of the semver string
+    failed to parse.
+    */
+    #[error("Failed to parse {0}.")]
+    Context(&'static str),
+
+    #[error("No valid ranges could be parsed")]
+    NoValidRanges,
+
+    /**
+    This error is mostly nondescript. Feel free to file an issue if you run
+    into it.
+    */
+    #[error("An unspecified error occurred.")]
     Other,
 }
 
@@ -276,6 +340,7 @@ impl Version {
         if input.len() > MAX_LENGTH {
             return Err(SemverError {
                 input: input.into(),
+                #[cfg(feature = "diagnostics")]
                 span: (input.len() - 1, 0).into(),
                 kind: SemverErrorKind::MaxLengthError,
             });
@@ -286,6 +351,7 @@ impl Version {
             Err(err) => Err(match err {
                 Err::Error(e) | Err::Failure(e) => SemverError {
                     input: input.into(),
+                    #[cfg(feature = "diagnostics")]
                     span: (e.input.as_ptr() as usize - input.as_ptr() as usize, 0).into(),
                     kind: if let Some(kind) = e.kind {
                         kind
@@ -297,6 +363,7 @@ impl Version {
                 },
                 Err::Incomplete(_) => SemverError {
                     input: input.into(),
+                    #[cfg(feature = "diagnostics")]
                     span: (input.len() - 1, 0).into(),
                     kind: SemverErrorKind::IncompleteInput,
                 },

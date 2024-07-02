@@ -340,6 +340,7 @@ impl Range {
             Err(err) => Err(match err {
                 Err::Error(e) | Err::Failure(e) => SemverError {
                     input: input.into(),
+                    #[cfg(feature = "diagnostics")]
                     span: (e.input.as_ptr() as usize - input.as_ptr() as usize, 0).into(),
                     kind: if let Some(kind) = e.kind {
                         kind
@@ -351,6 +352,7 @@ impl Range {
                 },
                 Err::Incomplete(_) => SemverError {
                     input: input.into(),
+                    #[cfg(feature = "diagnostics")]
                     span: (input.len() - 1, 0).into(),
                     kind: SemverErrorKind::IncompleteInput,
                 },
