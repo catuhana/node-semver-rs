@@ -7,7 +7,7 @@ It is designed for Rust programs and libraries meant for JavaScript tooling,
 and does its best to stay compatible with `node-semver`.
 
 It also supports [`serde`](https://crates.io/crates/serde) serialization,
-converting versions and ranges to strings.
+converting versions and ranges to strings. Enable `serde` feature to use them.
 
 ## Usage
 
