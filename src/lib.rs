@@ -5,10 +5,6 @@ use std::fmt;
 use std::num::ParseIntError;
 
 use miette::{Diagnostic, SourceSpan};
-use serde::{
-    de::{self, Deserialize, Deserializer, Visitor},
-    ser::{Serialize, Serializer},
-};
 use thiserror::Error;
 
 use nom::branch::alt;
@@ -22,6 +18,9 @@ use nom::sequence::{preceded, tuple};
 use nom::{Err, IResult};
 
 pub use range::*;
+
+#[cfg(feature = "serde")]
+mod serde;
 
 mod range;
 
@@ -340,41 +339,6 @@ impl std::hash::Hash for Version {
     }
 }
 
-impl Serialize for Version {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.collect_str(self)
-    }
-}
-
-impl<'de> Deserialize<'de> for Version {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct IntegrityVisitor;
-
-        impl Visitor<'_> for IntegrityVisitor {
-            type Value = Version;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a version string")
-            }
-
-            fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                Version::parse(v).map_err(de::Error::custom)
-            }
-        }
-
-        deserializer.deserialize_str(IntegrityVisitor)
-    }
-}
-
 impl fmt::Display for Version {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}.{}.{}", self.major, self.minor, self.patch)?;
@@ -591,7 +555,6 @@ mod tests {
     use super::*;
 
     use pretty_assertions::assert_eq;
-    use serde_derive::{Deserialize, Serialize};
 
     #[test]
     fn trivial_version_number() {
@@ -860,47 +823,54 @@ mod tests {
         );
     }
 
-    #[derive(Serialize, Deserialize, Eq, PartialEq)]
-    struct Versioned {
-        version: Version,
-    }
+    #[cfg(feature = "serde")]
+    mod serde_tests {
+        use serde_derive::{Deserialize, Serialize};
 
-    #[test]
-    fn read_version_from_string() {
-        let v: Versioned = serde_json::from_str(r#"{"version":"1.2.34-abc.213+2"}"#).unwrap();
+        use super::{Identifier, Version};
 
-        assert_eq!(
-            v.version,
-            Version {
-                major: 1,
-                minor: 2,
-                patch: 34,
-                pre_release: vec![
-                    Identifier::AlphaNumeric("abc".into()),
-                    Identifier::Numeric(213)
-                ],
-                build: vec![Identifier::Numeric(2)],
-            }
-        );
-    }
+        #[derive(Deserialize, Serialize, Eq, PartialEq)]
+        struct Versioned {
+            version: Version,
+        }
 
-    #[test]
-    fn serialize_a_version_to_string() {
-        let output = serde_json::to_string(&Versioned {
-            version: Version {
-                major: 1,
-                minor: 2,
-                patch: 34,
-                pre_release: vec![
-                    Identifier::AlphaNumeric("abc".into()),
-                    Identifier::Numeric(213),
-                ],
-                build: vec![Identifier::Numeric(2)],
-            },
-        })
-        .unwrap();
-        let expected: String = r#"{"version":"1.2.34-abc.213+2"}"#.into();
+        #[test]
+        fn read_version_from_string() {
+            let v: Versioned = serde_json::from_str(r#"{"version":"1.2.34-abc.213+2"}"#).unwrap();
 
-        assert_eq!(output, expected);
+            assert_eq!(
+                v.version,
+                Version {
+                    major: 1,
+                    minor: 2,
+                    patch: 34,
+                    pre_release: vec![
+                        Identifier::AlphaNumeric("abc".into()),
+                        Identifier::Numeric(213)
+                    ],
+                    build: vec![Identifier::Numeric(2)],
+                }
+            );
+        }
+
+        #[test]
+        fn serialize_a_version_to_string() {
+            let output = serde_json::to_string(&Versioned {
+                version: Version {
+                    major: 1,
+                    minor: 2,
+                    patch: 34,
+                    pre_release: vec![
+                        Identifier::AlphaNumeric("abc".into()),
+                        Identifier::Numeric(213),
+                    ],
+                    build: vec![Identifier::Numeric(2)],
+                },
+            })
+            .unwrap();
+            let expected: String = r#"{"version":"1.2.34-abc.213+2"}"#.into();
+
+            assert_eq!(output, expected);
+        }
     }
 }

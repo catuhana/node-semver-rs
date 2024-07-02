@@ -1,11 +1,6 @@
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::fmt;
 
-use serde::{
-    de::{self, Deserialize, Deserializer, Visitor},
-    ser::{Serialize, Serializer},
-};
-
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::{anychar, space0, space1};
@@ -509,43 +504,6 @@ impl std::str::FromStr for Range {
     type Err = SemverError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::parse(s)
-    }
-}
-
-impl Serialize for Range {
-    fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        // Serialize VersionReq as a string.
-        serializer.collect_str(self)
-    }
-}
-
-impl<'de> Deserialize<'de> for Range {
-    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct VersionReqVisitor;
-
-        /// Deserialize `VersionReq` from a string.
-        impl Visitor<'_> for VersionReqVisitor {
-            type Value = Range;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a SemVer version requirement as a string")
-            }
-
-            fn visit_str<E>(self, v: &str) -> ::std::result::Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                Range::parse(v).map_err(de::Error::custom)
-            }
-        }
-
-        deserializer.deserialize_str(VersionReqVisitor)
     }
 }
 
@@ -1611,7 +1569,6 @@ mod satisfies_ranges_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_derive::{Deserialize, Serialize};
 
     use pretty_assertions::assert_eq;
 
@@ -1716,30 +1673,37 @@ mod tests {
     ["<x <* || >* 2.x", "<0.0.0-0"],
     */
 
-    #[derive(Serialize, Deserialize, Eq, PartialEq)]
-    struct WithVersionReq {
-        req: Range,
-    }
+    #[cfg(feature = "serde")]
+    mod serde_tests {
+        use serde_derive::{Deserialize, Serialize};
 
-    #[test]
-    fn read_version_req_from_string() {
-        let v: WithVersionReq = serde_json::from_str(r#"{"req":"^1.2.3"}"#).unwrap();
+        use super::{assert_eq, BoundSet, Predicate, Range};
 
-        assert_eq!(v.req, "^1.2.3".parse().unwrap(),);
-    }
+        #[derive(Deserialize, Serialize, Eq, PartialEq)]
+        struct WithVersionReq {
+            req: Range,
+        }
 
-    #[test]
-    fn serialize_a_versionreq_to_string() {
-        let output = serde_json::to_string(&WithVersionReq {
-            req: Range(vec![BoundSet::at_most(Predicate::Excluding(
-                "1.2.3".parse().unwrap(),
-            ))
-            .unwrap()]),
-        })
-        .unwrap();
-        let expected: String = r#"{"req":"<1.2.3"}"#.into();
+        #[test]
+        fn read_version_req_from_string() {
+            let v: WithVersionReq = serde_json::from_str(r#"{"req":"^1.2.3"}"#).unwrap();
 
-        assert_eq!(output, expected);
+            assert_eq!(v.req, "^1.2.3".parse().unwrap(),);
+        }
+
+        #[test]
+        fn serialize_a_versionreq_to_string() {
+            let output = serde_json::to_string(&WithVersionReq {
+                req: Range(vec![BoundSet::at_most(Predicate::Excluding(
+                    "1.2.3".parse().unwrap(),
+                ))
+                .unwrap()]),
+            })
+            .unwrap();
+            let expected: String = r#"{"req":"<1.2.3"}"#.into();
+
+            assert_eq!(output, expected);
+        }
     }
 }
 
