@@ -1,0 +1,92 @@
+name: Publish Documentation
+run-name: ${{ inputs.reason }}
+
+on:
+  push:
+    paths-ignore:
+      - .editorconfig
+      - .gitignore
+      - cliff.toml
+      - Makefile.toml
+      - LICENSE
+      - CHANGELOG.md
+      - README.md
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - .editorconfig
+      - .gitignore
+      - cliff.toml
+      - Makefile.toml
+      - LICENSE
+      - CHANGELOG.md
+      - README.md
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: Dispatch reason
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  generate_documentation:
+    name: Generate Documentation
+    strategy:
+      matrix:
+        rust-toolchain: [nightly]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up or update Rust ${{ matrix.rust-toolchain }} toolchain
+        run: rustup toolchain install ${{ matrix.rust-toolchain }} --profile default
+
+      - name: Set up Rust cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target/
+          key: ${{ runner.os }}-cargo-${{ matrix.rust-toolchain }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Clean documentation folder
+        run: cargo +${{ matrix.rust-toolchain }} clean --doc
+
+      - name: Generate documentation
+        run: cargo +${{ matrix.rust-toolchain }} doc --no-deps
+
+      - name: Add redirect from index page to documentation page
+        run: echo '<meta http-equiv="refresh" content="0; url=node_semver/index.html" />' > target/doc/index.html
+
+      - name: Upload artefact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: target/doc
+  deploy_documentation:
+    name: Deploy Documentation
+    needs: generate_documentation
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
