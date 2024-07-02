@@ -62,15 +62,15 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ matrix.rust-toolchain }}-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Check Rust code
-        run: cargo +${{ matrix.rust-toolchain }} check --verbose --all
+        run: cargo +${{ matrix.rust-toolchain }} check --all-features --verbose --all
 
       - name: Check Rust code format
         if: '!cancelled()'
-        run: cargo +${{ matrix.rust-toolchain }} fmt --verbose --all --check
+        run: cargo +${{ matrix.rust-toolchain }} fmt --all-features --verbose --all --check
 
       - name: Check Rust code lint
         if: '!cancelled()'
-        run: cargo +${{ matrix.rust-toolchain }} clippy --verbose -- -W clippy::nursery
+        run: cargo +${{ matrix.rust-toolchain }} clippy --all-features --verbose -- -W clippy::nursery
   tests:
     name: Run Tests
     strategy:
@@ -97,4 +97,4 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ matrix.rust-toolchain }}-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Run Rust tests
-        run: cargo +${{ matrix.rust-toolchain }} test --verbose --all
+        run: cargo +${{ matrix.rust-toolchain }} test --all-features --verbose --all
