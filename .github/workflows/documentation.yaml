@@ -70,7 +70,7 @@ jobs:
         run: cargo +${{ matrix.rust-toolchain }} clean --doc
 
       - name: Generate documentation
-        run: cargo +${{ matrix.rust-toolchain }} doc --no-deps
+        run: cargo +${{ matrix.rust-toolchain }} doc --all-features --no-deps
 
       - name: Add redirect from index page to documentation page
         run: echo '<meta http-equiv="refresh" content="0; url=node_semver/index.html" />' > target/doc/index.html
