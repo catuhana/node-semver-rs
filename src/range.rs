@@ -21,8 +21,8 @@ struct BoundSet {
 
 impl BoundSet {
     fn new(lower: Bound, upper: Bound) -> Option<Self> {
-        use Bound::*;
-        use Predicate::*;
+        use Bound::{Lower, Upper};
+        use Predicate::{Excluding, Including};
 
         match (lower, upper) {
             (Lower(Excluding(v1)), Upper(Including(v2)))
@@ -35,7 +35,7 @@ impl BoundSet {
                 lower: Lower(Including(v1)),
                 upper: Upper(Including(v2)),
             }),
-            (lower, upper) if lower < upper => Some(Self { lower, upper }),
+            (lower, upper) if lower < upper => Some(Self { upper, lower }),
             _ => None,
         }
     }
@@ -56,8 +56,8 @@ impl BoundSet {
     }
 
     fn satisfies(&self, version: &Version) -> bool {
-        use Bound::*;
-        use Predicate::*;
+        use Bound::{Lower, Upper};
+        use Predicate::{Excluding, Including, Unbounded};
 
         let lower_bound = match &self.lower {
             Lower(Including(lower)) => lower <= version,
@@ -85,8 +85,7 @@ impl BoundSet {
 
         if version.is_prerelease() {
             let lower_version = match &self.lower {
-                Lower(Including(v)) => Some(v),
-                Lower(Excluding(v)) => Some(v),
+                Lower(Including(v) | Excluding(v)) => Some(v),
                 _ => None,
             };
             if let Some(lower_version) = lower_version {
@@ -100,8 +99,7 @@ impl BoundSet {
             }
 
             let upper_version = match &self.upper {
-                Upper(Including(v)) => Some(v),
-                Upper(Excluding(v)) => Some(v),
+                Upper(Including(v) | Excluding(v)) => Some(v),
                 _ => None,
             };
             if let Some(upper_version) = upper_version {
@@ -144,7 +142,7 @@ impl BoundSet {
     }
 
     fn difference(&self, other: &Self) -> Option<Vec<Self>> {
-        use Bound::*;
+        use Bound::{Lower, Upper};
 
         if let Some(overlap) = self.intersect(other) {
             if &overlap == self {
@@ -172,19 +170,19 @@ impl BoundSet {
 
 impl fmt::Display for BoundSet {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use Bound::*;
-        use Predicate::*;
+        use Bound::{Lower, Upper};
+        use Predicate::{Excluding, Including, Unbounded};
         match (&self.lower, &self.upper) {
             (Lower(Unbounded), Upper(Unbounded)) => write!(f, "*"),
-            (Lower(Unbounded), Upper(Including(v))) => write!(f, "<={}", v),
-            (Lower(Unbounded), Upper(Excluding(v))) => write!(f, "<{}", v),
-            (Lower(Including(v)), Upper(Unbounded)) => write!(f, ">={}", v),
-            (Lower(Excluding(v)), Upper(Unbounded)) => write!(f, ">{}", v),
-            (Lower(Including(v)), Upper(Including(v2))) if v == v2 => write!(f, "{}", v),
-            (Lower(Including(v)), Upper(Including(v2))) => write!(f, ">={} <={}", v, v2),
-            (Lower(Including(v)), Upper(Excluding(v2))) => write!(f, ">={} <{}", v, v2),
-            (Lower(Excluding(v)), Upper(Including(v2))) => write!(f, ">{} <={}", v, v2),
-            (Lower(Excluding(v)), Upper(Excluding(v2))) => write!(f, ">{} <{}", v, v2),
+            (Lower(Unbounded), Upper(Including(v))) => write!(f, "<={v}"),
+            (Lower(Unbounded), Upper(Excluding(v))) => write!(f, "<{v}"),
+            (Lower(Including(v)), Upper(Unbounded)) => write!(f, ">={v}"),
+            (Lower(Excluding(v)), Upper(Unbounded)) => write!(f, ">{v}"),
+            (Lower(Including(v)), Upper(Including(v2))) if v == v2 => write!(f, "{v}"),
+            (Lower(Including(v)), Upper(Including(v2))) => write!(f, ">={v} <={v2}"),
+            (Lower(Including(v)), Upper(Excluding(v2))) => write!(f, ">={v} <{v2}"),
+            (Lower(Excluding(v)), Upper(Including(v2))) => write!(f, ">{v} <={v2}"),
+            (Lower(Excluding(v)), Upper(Excluding(v2))) => write!(f, ">{v} <{v2}"),
             _ => unreachable!("does not make sense"),
         }
     }
@@ -208,7 +206,7 @@ enum Predicate {
 
 impl Predicate {
     fn flip(self) -> Self {
-        use Predicate::*;
+        use Predicate::{Excluding, Including, Unbounded};
         match self {
             Excluding(v) => Including(v),
             Including(v) => Excluding(v),
@@ -233,19 +231,18 @@ impl Bound {
     }
 
     fn predicate(self) -> Predicate {
-        use Bound::*;
+        use Bound::{Lower, Upper};
 
         match self {
-            Lower(p) => p,
-            Upper(p) => p,
+            Lower(p) | Upper(p) => p,
         }
     }
 }
 
 impl Ord for Bound {
     fn cmp(&self, other: &Self) -> Ordering {
-        use Bound::*;
-        use Predicate::*;
+        use Bound::{Lower, Upper};
+        use Predicate::{Excluding, Including, Unbounded};
 
         match (self, other) {
             (Lower(Unbounded), Lower(Unbounded)) | (Upper(Unbounded), Upper(Unbounded)) => {
@@ -279,6 +276,7 @@ impl Ord for Bound {
                     Ordering::Less
                 }
             }
+
             (Lower(Excluding(v1)), Lower(Including(v2))) => {
                 if v1 < v2 {
                     Ordering::Less
@@ -287,8 +285,7 @@ impl Ord for Bound {
                 }
             }
             (Lower(Including(v1)), Lower(Excluding(v2)))
-            | (Upper(Excluding(v1)), Lower(Including(v2)))
-            | (Upper(Excluding(v1)), Upper(Including(v2))) => {
+            | (Upper(Excluding(v1)), Lower(Including(v2)) | Upper(Including(v2))) => {
                 if v1 <= v2 {
                     Ordering::Less
                 } else {
@@ -318,7 +315,7 @@ pub struct Range(Vec<BoundSet>);
 
 impl fmt::Display for Operation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use Operation::*;
+        use Operation::{Exact, GreaterThan, GreaterThanEquals, LessThan, LessThanEquals};
         match self {
             Exact => write!(f, ""),
             GreaterThan => write!(f, ">"),
@@ -361,6 +358,7 @@ impl Range {
         }
     }
 
+    #[must_use]
     /**
     Creates a new range that matches any version.
     */
@@ -368,6 +366,7 @@ impl Range {
         Self(vec![BoundSet::new(Bound::lower(), Bound::upper()).unwrap()])
     }
 
+    #[must_use]
     /**
     Returns true if `version` is satisfied by this range.
     */
@@ -381,6 +380,7 @@ impl Range {
         false
     }
 
+    #[must_use]
     /**
     Returns true if `other` is a strict superset of this range.
     */
@@ -396,6 +396,7 @@ impl Range {
         false
     }
 
+    #[must_use]
     /**
     Returns true if `other` has overlap with this range.
     */
@@ -411,6 +412,7 @@ impl Range {
         false
     }
 
+    #[must_use]
     /**
     Returns a new range that is the set-intersection between this range and `other`.
     */
@@ -420,7 +422,7 @@ impl Range {
         for lefty in &self.0 {
             for righty in &other.0 {
                 if let Some(set) = lefty.intersect(righty) {
-                    sets.push(set)
+                    sets.push(set);
                 }
             }
         }
@@ -432,6 +434,7 @@ impl Range {
         }
     }
 
+    #[must_use]
     /**
     Returns a new range that is the set-difference between this range and `other`.
     */
@@ -441,7 +444,7 @@ impl Range {
         for lefty in &self.0 {
             for righty in &other.0 {
                 if let Some(mut range) = lefty.difference(righty) {
-                    predicates.append(&mut range)
+                    predicates.append(&mut range);
                 }
             }
         }
@@ -453,6 +456,7 @@ impl Range {
         }
     }
 
+    #[must_use]
     /**
     Returns the minimum version that satisfies this range.
     */
@@ -464,7 +468,7 @@ impl Range {
                     Predicate::Excluding(v) => {
                         let mut v = v.clone();
                         if v.is_prerelease() {
-                            v.pre_release.push(Identifier::Numeric(0))
+                            v.pre_release.push(Identifier::Numeric(0));
                         } else {
                             v.patch += 1;
                         }
@@ -497,7 +501,7 @@ impl fmt::Display for Range {
             if i > 0 {
                 write!(f, "||")?;
             }
-            write!(f, "{}", range)?;
+            write!(f, "{range}")?;
         }
         Ok(())
     }
@@ -590,7 +594,7 @@ fn range(input: &str) -> IResult<&str, Vec<BoundSet>, SemverParseError<&str>> {
                         acc.push(bs);
                     }
                 } else {
-                    acc.push(bs)
+                    acc.push(bs);
                 }
                 acc
             })
@@ -618,7 +622,7 @@ fn garbage(input: &str) -> IResult<&str, Option<BoundSet>, SemverParseError<&str
 
 // primitive  ::= ( '<' | '>' | '>=' | '<=' | '=' ) partial
 fn primitive(input: &str) -> IResult<&str, Option<BoundSet>, SemverParseError<&str>> {
-    use Operation::*;
+    use Operation::{Exact, GreaterThan, GreaterThanEquals, LessThan, LessThanEquals};
     context(
         "operation range (ex: >= 1.2.3)",
         map(
@@ -748,7 +752,7 @@ fn primitive(input: &str) -> IResult<&str, Option<BoundSet>, SemverParseError<&s
 }
 
 fn operation(input: &str) -> IResult<&str, Operation, SemverParseError<&str>> {
-    use Operation::*;
+    use Operation::{Exact, GreaterThan, GreaterThanEquals, LessThan, LessThanEquals};
     alt((
         map(tag(">="), |_| GreaterThanEquals),
         map(tag(">"), |_| GreaterThan),
@@ -848,7 +852,7 @@ fn partial_version(input: &str) -> IResult<&str, Partial, SemverParseError<&str>
 }
 
 fn component(input: &str) -> IResult<&str, Option<u64>, SemverParseError<&str>> {
-    alt((map(x_or_asterisk, |_| None), map(number, Some)))(input)
+    alt((map(x_or_asterisk, |()| None), map(number, Some)))(input)
 }
 
 fn x_or_asterisk(input: &str) -> IResult<&str, (), SemverParseError<&str>> {
