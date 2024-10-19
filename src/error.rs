@@ -33,7 +33,7 @@ impl SemverError {
     }
 
     #[cfg(feature = "miette")]
-    /// Returns the SourceSpan of the error.
+    /// Returns the [`SourceSpan`] of the error.
     pub const fn span(&self) -> &SourceSpan {
         &self.span
     }
@@ -68,14 +68,13 @@ impl SemverError {
             .iter()
             .rev()
             .position(|&b| b == b'\n')
-            .map(|pos| self.offset() - pos)
-            .unwrap_or(0);
+            .map_or(0, |pos| self.offset() - pos);
 
         // Find the full line after that newline
         let line = self.input[line_begin..]
             .lines()
             .next()
-            .unwrap_or(&self.input[line_begin..])
+            .unwrap_or_else(|| &self.input[line_begin..])
             .trim_end();
 
         // The (0-indexed) column number is the offset of our substring into that line
