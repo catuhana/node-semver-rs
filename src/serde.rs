@@ -27,7 +27,7 @@ impl<'de> Deserialize<'de> for Range {
         struct VersionReqVisitor;
 
         /// Deserialize `VersionReq` from a string.
-        impl<'de> Visitor<'de> for VersionReqVisitor {
+        impl Visitor<'_> for VersionReqVisitor {
             type Value = Range;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -62,7 +62,7 @@ impl<'de> Deserialize<'de> for Version {
     {
         struct IntegrityVisitor;
 
-        impl<'de> Visitor<'de> for IntegrityVisitor {
+        impl Visitor<'_> for IntegrityVisitor {
             type Value = Version;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
