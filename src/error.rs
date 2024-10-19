@@ -1,5 +1,11 @@
-use std::{marker::PhantomData, num::ParseIntError};
+#[cfg(feature = "miette")]
+use std::fmt::Display;
+#[cfg(not(feature = "miette"))]
+use std::marker::PhantomData;
+use std::num::ParseIntError;
 
+#[cfg(feature = "miette")]
+use miette::{Diagnostic, SourceSpan};
 use nom::error::{ContextError, ErrorKind, FromExternalError, ParseError};
 use thiserror::Error;
 
@@ -161,7 +167,7 @@ pub enum SemverErrorKind {
 
 #[cfg(feature = "miette")]
 impl Diagnostic for SemverError {
-    fn code<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+    fn code<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
         self.kind().code()
     }
 
@@ -169,11 +175,11 @@ impl Diagnostic for SemverError {
         self.kind().severity()
     }
 
-    fn help<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+    fn help<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
         self.kind().help()
     }
 
-    fn url<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+    fn url<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
         self.kind().url()
     }
 
