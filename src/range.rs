@@ -1,5 +1,6 @@
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::fmt;
+use std::marker::PhantomData;
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
@@ -340,6 +341,7 @@ impl Range {
             Err(err) => Err(match err {
                 Err::Error(e) | Err::Failure(e) => SemverError {
                     input: input.into(),
+                    #[cfg(feature = "miette")]
                     span: (e.input.as_ptr() as usize - input.as_ptr() as usize, 0).into(),
                     kind: if let Some(kind) = e.kind {
                         kind
@@ -351,6 +353,7 @@ impl Range {
                 },
                 Err::Incomplete(_) => SemverError {
                     input: input.into(),
+                    #[cfg(feature = "miette")]
                     span: (input.len() - 1, 0).into(),
                     kind: SemverErrorKind::IncompleteInput,
                 },
@@ -549,9 +552,12 @@ fn range_set(input: &str) -> IResult<&str, Range, SemverParseError<&str>> {
     map_res(bound_sets, |sets| {
         if sets.is_empty() {
             Err(SemverParseError {
+                #[cfg(feature = "miette")]
                 input,
                 kind: Some(SemverErrorKind::NoValidRanges),
                 context: None,
+                #[cfg(not(feature = "miette"))]
+                _phantom: PhantomData,
             })
         } else {
             Ok(Range(sets))

@@ -1,3 +1,5 @@
+#![cfg(feature = "serde")]
+
 use std::fmt;
 
 use serde::{
