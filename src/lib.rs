@@ -47,8 +47,8 @@ pub enum Identifier {
 impl fmt::Display for Identifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Numeric(n) => write!(f, "{}", n),
-            Self::AlphaNumeric(s) => write!(f, "{}", s),
+            Self::Numeric(n) => write!(f, "{n}"),
+            Self::AlphaNumeric(s) => write!(f, "{s}"),
         }
     }
 }
@@ -66,11 +66,13 @@ pub struct Version {
 }
 
 impl Version {
+    #[must_use]
     /// True if this [Version] satisfies the given [Range].
     pub fn satisfies(&self, range: &Range) -> bool {
         range.satisfies(self)
     }
 
+    #[must_use]
     /// True is this [Version] has a prerelease component.
     pub fn is_prerelease(&self) -> bool {
         !self.pre_release.is_empty()
@@ -145,7 +147,7 @@ impl fmt::Display for Version {
             } else {
                 write!(f, ".")?;
             }
-            write!(f, "{}", ident)?;
+            write!(f, "{ident}")?;
         }
 
         for (i, ident) in self.build.iter().enumerate() {
@@ -154,7 +156,7 @@ impl fmt::Display for Version {
             } else {
                 write!(f, ".")?;
             }
-            write!(f, "{}", ident)?;
+            write!(f, "{ident}")?;
         }
 
         Ok(())
@@ -240,7 +242,7 @@ enum Extras {
 
 impl Extras {
     fn values(self) -> (Vec<Identifier>, Vec<Identifier>) {
-        use Extras::*;
+        use Extras::{Build, Release, ReleaseAndBuild};
         match self {
             Release(ident) => (ident, Vec::new()),
             Build(ident) => (Vec::new(), ident),
@@ -262,8 +264,8 @@ fn version(input: &str) -> IResult<&str, Version, SemverParseError<&str>> {
                 major,
                 minor,
                 patch,
-                pre_release,
                 build,
+                pre_release,
             },
         ),
     )(input)
@@ -278,7 +280,7 @@ fn extras(
             map(pre_release, Extras::Release),
             map(build, Extras::Build),
         ))),
-        |extras| extras.map_or_else(Default::default, |extras| extras.values()),
+        |extras| extras.map_or_else(Default::default, Extras::values),
     )(input)
 }
 
@@ -314,9 +316,10 @@ fn identifier(input: &str) -> IResult<&str, Identifier, SemverParseError<&str>> 
         map(
             take_while1(|x: char| is_alphanumeric(x as u8) || x == '-'),
             |s: &str| {
-                str::parse::<u64>(s)
-                    .map(Identifier::Numeric)
-                    .unwrap_or_else(|_err| Identifier::AlphaNumeric(s.to_string()))
+                str::parse::<u64>(s).map_or_else(
+                    |_err| Identifier::AlphaNumeric(s.to_string()),
+                    Identifier::Numeric,
+                )
             },
         ),
     )(input)

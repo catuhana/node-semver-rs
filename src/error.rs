@@ -9,7 +9,7 @@ use crate::MAX_LENGTH;
 Semver version or range parsing error wrapper.
 
 This wrapper is used to hold some parsing-related metadata, as well as
-a more specific [SemverErrorKind].
+a more specific [`SemverErrorKind`].
 */
 #[derive(Debug, Clone, Error, Eq, PartialEq)]
 #[error("{kind}")]
@@ -38,9 +38,9 @@ impl SemverError {
         self.span.offset()
     }
 
-    /// Returns the more specific [SemverErrorKind] for this error.
+    /// Returns the more specific [`SemverErrorKind`] for this error.
     ///
-    /// This value can also be fetched through [std::error::Error::source],
+    /// This value can also be fetched through [`std::error::Error::source`],
     /// but that would require downcasting to match types.
     pub const fn kind(&self) -> &SemverErrorKind {
         &self.kind
@@ -80,13 +80,13 @@ impl SemverError {
 }
 
 /**
-The specific kind of error that occurred. Usually wrapped in a [SemverError].
+The specific kind of error that occurred. Usually wrapped in a [`SemverError`].
 */
 #[derive(Debug, Clone, Error, Eq, PartialEq)]
 #[cfg_attr(feature = "miette", derive(Diagnostic))]
 pub enum SemverErrorKind {
     /**
-    Semver strings overall can't be longer than [MAX_LENGTH]. This is a
+    Semver strings overall can't be longer than [`MAX_LENGTH`]. This is a
     restriction coming from the JavaScript `node-semver`.
     */
     #[error("Semver string can't be longer than {} characters.", MAX_LENGTH)]
@@ -123,7 +123,7 @@ pub enum SemverErrorKind {
 
     /**
     `node-semver` inherits the JavaScript implementation's limitation on
-    limiting integer component sizes to [MAX_SAFE_INTEGER].
+    limiting integer component sizes to [`MAX_SAFE_INTEGER`].
     */
     #[error("Integer component of semver string is larger than JavaScript's Number.MAX_SAFE_INTEGER: {0}")]
     #[cfg_attr(
@@ -189,7 +189,7 @@ impl Diagnostic for SemverError {
 }
 
 #[derive(Debug)]
-pub(crate) struct SemverParseError<I> {
+pub struct SemverParseError<I> {
     #[cfg(feature = "miette")]
     pub(crate) input: I,
     pub(crate) context: Option<&'static str>,
