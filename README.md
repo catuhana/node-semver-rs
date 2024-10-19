@@ -9,6 +9,8 @@ and does its best to stay compatible with `node-semver`.
 It also supports [`serde`](https://crates.io/crates/serde) serialization,
 converting versions and ranges to strings. Enable `serde` feature to use them.
 
+For advanced diagnostics with `miette`, enable `miette` feature.
+
 ## Usage
 
 `node-semver` includes two main types: [Version] and [Range]. See [the
