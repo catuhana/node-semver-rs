@@ -1,5 +1,6 @@
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::fmt;
+#[cfg(not(feature = "miette"))]
 use std::marker::PhantomData;
 
 use nom::branch::alt;

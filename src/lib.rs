@@ -2,6 +2,7 @@
 
 use std::cmp::{self, Ordering};
 use std::fmt;
+#[cfg(not(feature = "miette"))]
 use std::marker::PhantomData;
 
 use error::{SemverError, SemverErrorKind, SemverParseError};
