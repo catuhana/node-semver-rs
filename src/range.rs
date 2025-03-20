@@ -9,8 +9,8 @@ use nom::character::complete::{anychar, space0, space1};
 use nom::combinator::{all_consuming, eof, map, map_res, opt, peek};
 use nom::error::context;
 use nom::multi::{many_till, separated_list0};
-use nom::sequence::{delimited, preceded, terminated, tuple};
-use nom::{Err, IResult};
+use nom::sequence::{delimited, preceded, terminated};
+use nom::{Err, IResult, Parser};
 
 use crate::{extras, number, Identifier, SemverError, SemverErrorKind, SemverParseError, Version};
 
@@ -334,7 +334,7 @@ impl Range {
     pub fn parse<S: AsRef<str>>(input: S) -> Result<Self, SemverError> {
         let input = input.as_ref();
 
-        match all_consuming(range_set)(input) {
+        match all_consuming(range_set).parse(input) {
             Ok((_, range)) => Ok(range),
             Err(err) => Err(match err {
                 Err::Error(e) | Err::Failure(e) => SemverError {
@@ -567,17 +567,19 @@ fn range_set(input: &str) -> IResult<&str, Range, SemverParseError<&str>> {
         } else {
             Ok(Range(sets))
         }
-    })(input)
+    })
+    .parse(input)
 }
 
 // logical-or ::= ( ' ' ) * '||' ( ' ' ) *
 fn bound_sets(input: &str) -> IResult<&str, Vec<BoundSet>, SemverParseError<&str>> {
     map(separated_list0(logical_or, range), |sets| {
         sets.into_iter().flatten().collect()
-    })(input)
+    })
+    .parse(input)
 }
 fn logical_or(input: &str) -> IResult<&str, (), SemverParseError<&str>> {
-    map(delimited(space0, tag("||"), space0), |_| ())(input)
+    map(delimited(space0, tag("||"), space0), |_| ()).parse(input)
 }
 
 fn range(input: &str) -> IResult<&str, Vec<BoundSet>, SemverParseError<&str>> {
@@ -599,7 +601,8 @@ fn range(input: &str) -> IResult<&str, Vec<BoundSet>, SemverParseError<&str>> {
                 }
                 acc
             })
-    })(input)
+    })
+    .parse(input)
 }
 
 // simple ::= primitive | partial | tilde | caret | garbage
@@ -611,14 +614,16 @@ fn simple(input: &str) -> IResult<&str, Option<BoundSet>, SemverParseError<&str>
         terminated(tilde, peek(alt((space1, tag("||"), eof)))),
         terminated(caret, peek(alt((space1, tag("||"), eof)))),
         garbage,
-    ))(input)
+    ))
+    .parse(input)
 }
 
 fn garbage(input: &str) -> IResult<&str, Option<BoundSet>, SemverParseError<&str>> {
     map(
         many_till(anychar, alt((peek(space1), peek(tag("||")), eof))),
         |_| None,
-    )(input)
+    )
+    .parse(input)
 }
 
 // primitive  ::= ( '<' | '>' | '>=' | '<=' | '=' ) partial
@@ -626,10 +631,8 @@ fn primitive(input: &str) -> IResult<&str, Option<BoundSet>, SemverParseError<&s
     use Operation::{Exact, GreaterThan, GreaterThanEquals, LessThan, LessThanEquals};
     context(
         "operation range (ex: >= 1.2.3)",
-        map(
-            tuple((operation, preceded(space0, partial_version))),
-            |parsed| {
-                match parsed {
+        map((operation, preceded(space0, partial_version)), |parsed| {
+            match parsed {
                 (GreaterThanEquals, partial) => {
                     BoundSet::at_least(Predicate::Including(partial.into()))
                 }
@@ -747,9 +750,8 @@ fn primitive(input: &str) -> IResult<&str, Option<BoundSet>, SemverParseError<&s
                 ),
                 _ => unreachable!("Failed to parse operation. This should not happen and should be reported as a bug, while parsing {}", input),
             }
-            },
-        ),
-    )(input)
+        }),
+    ).parse(input)
 }
 
 fn operation(input: &str) -> IResult<&str, Operation, SemverParseError<&str>> {
@@ -760,7 +762,8 @@ fn operation(input: &str) -> IResult<&str, Operation, SemverParseError<&str>> {
         map(tag("="), |_| Exact),
         map(tag("<="), |_| LessThanEquals),
         map(tag("<"), |_| LessThan),
-    ))(input)
+    ))
+    .parse(input)
 }
 
 fn partial(input: &str) -> IResult<&str, Option<BoundSet>, SemverParseError<&str>> {
@@ -801,7 +804,8 @@ fn partial(input: &str) -> IResult<&str, Option<BoundSet>, SemverParseError<&str
             ),
             partial => BoundSet::exact(partial.into()),
         }),
-    )(input)
+    )
+    .parse(input)
 }
 
 #[derive(Debug, Clone)]
@@ -830,11 +834,11 @@ impl From<Partial> for Version {
 // nr      ::= '0' | ['1'-'9'] ( ['0'-'9'] ) *
 // NOTE: Loose mode means nr is actually just `['0'-'9']`.
 fn partial_version(input: &str) -> IResult<&str, Partial, SemverParseError<&str>> {
-    let (input, _) = opt(tag("v"))(input)?;
+    let (input, _) = opt(tag("v")).parse(input)?;
     let (input, _) = space0(input)?;
     let (input, major) = component(input)?;
-    let (input, minor) = opt(preceded(tag("."), component))(input)?;
-    let (input, patch) = opt(preceded(tag("."), component))(input)?;
+    let (input, minor) = opt(preceded(tag("."), component)).parse(input)?;
+    let (input, patch) = opt(preceded(tag("."), component)).parse(input)?;
     let (input, (pre, build)) = if patch.is_some() {
         extras(input)?
     } else {
@@ -853,24 +857,25 @@ fn partial_version(input: &str) -> IResult<&str, Partial, SemverParseError<&str>
 }
 
 fn component(input: &str) -> IResult<&str, Option<u64>, SemverParseError<&str>> {
-    alt((map(x_or_asterisk, |()| None), map(number, Some)))(input)
+    alt((map(x_or_asterisk, |()| None), map(number, Some))).parse(input)
 }
 
 fn x_or_asterisk(input: &str) -> IResult<&str, (), SemverParseError<&str>> {
-    map(alt((tag("x"), tag("X"), tag("*"))), |_| ())(input)
+    map(alt((tag("x"), tag("X"), tag("*"))), |_| ()).parse(input)
 }
 
 fn tilde_gt(input: &str) -> IResult<&str, Option<&str>, SemverParseError<&str>> {
     map(
-        tuple((tag("~"), space0, opt(tag(">")), space0)),
+        (tag("~"), space0, opt(tag(">")), space0),
         |(_, _, gt, _)| gt,
-    )(input)
+    )
+    .parse(input)
 }
 
 fn tilde(input: &str) -> IResult<&str, Option<BoundSet>, SemverParseError<&str>> {
     context(
         "tilde version range (ex: ~1.2.3)",
-        map(tuple((tilde_gt, partial_version)), |parsed| match parsed {
+        map((tilde_gt, partial_version), |parsed| match parsed {
             (
                 Some(_gt),
                 Partial {
@@ -947,14 +952,15 @@ fn tilde(input: &str) -> IResult<&str, Option<BoundSet>, SemverParseError<&str>>
             ),
             _ => unreachable!("This should not have parsed: {}", input),
         }),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn caret(input: &str) -> IResult<&str, Option<BoundSet>, SemverParseError<&str>> {
     context(
         "caret version range (ex: ^1.2.3)",
         map(
-            preceded(tuple((tag("^"), space0)), partial_version),
+            preceded((tag("^"), space0), partial_version),
             |parsed| match parsed {
                 Partial {
                     major: Some(0),
@@ -1013,13 +1019,14 @@ fn caret(input: &str) -> IResult<&str, Option<BoundSet>, SemverParseError<&str>>
                 _ => None,
             },
         ),
-    )(input)
+    )
+    .parse(input)
 }
 
 // hyphen ::= ' - ' partial /* loose */ | partial ' - ' partial
 fn hyphen(input: &str) -> IResult<&str, Option<BoundSet>, SemverParseError<&str>> {
     context("hyphenated version range (ex: 1.2 - 2)", |input| {
-        let (input, lower) = opt(partial_version)(input)?;
+        let (input, lower) = opt(partial_version).parse(input)?;
         let (input, _) = space1(input)?;
         let (input, _) = tag("-")(input)?;
         let (input, _) = space1(input)?;
@@ -1072,7 +1079,8 @@ fn hyphen(input: &str) -> IResult<&str, Option<BoundSet>, SemverParseError<&str>
             BoundSet::at_most(upper)
         };
         Ok((input, bounds))
-    })(input)
+    })
+    .parse(input)
 }
 
 macro_rules! create_tests_for {
