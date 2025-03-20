@@ -10,12 +10,11 @@ use error::{SemverError, SemverErrorKind, SemverParseError};
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while1};
 use nom::character::complete::{digit1, space0};
-use nom::character::is_alphanumeric;
 use nom::combinator::{all_consuming, map, map_res, opt, recognize};
 use nom::error::context;
 use nom::multi::separated_list1;
-use nom::sequence::{preceded, tuple};
-use nom::{Err, IResult};
+use nom::sequence::preceded;
+use nom::{AsChar, Err, IResult, Parser};
 
 pub use range::*;
 
@@ -103,7 +102,7 @@ impl Version {
             });
         }
 
-        match all_consuming(version)(input) {
+        match all_consuming(version).parse(input) {
             Ok((_, arg)) => Ok(arg),
             Err(err) => Err(match err {
                 Err::Error(e) | Err::Failure(e) => SemverError {
@@ -271,7 +270,7 @@ fn version(input: &str) -> IResult<&str, Version, SemverParseError<&str>> {
     context(
         "version",
         map(
-            tuple((opt(alt((tag("v"), tag("V")))), space0, version_core, extras)),
+            (opt(alt((tag("v"), tag("V")))), space0, version_core, extras),
             |(_, _, (major, minor, patch), (pre_release, build))| Version {
                 major,
                 minor,
@@ -280,7 +279,8 @@ fn version(input: &str) -> IResult<&str, Version, SemverParseError<&str>> {
                 pre_release,
             },
         ),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn extras(
@@ -288,12 +288,13 @@ fn extras(
 ) -> IResult<&str, (Vec<Identifier>, Vec<Identifier>), SemverParseError<&str>> {
     map(
         opt(alt((
-            map(tuple((pre_release, build)), Extras::ReleaseAndBuild),
+            map((pre_release, build), Extras::ReleaseAndBuild),
             map(pre_release, Extras::Release),
             map(build, Extras::Build),
         ))),
         |extras| extras.map_or_else(Default::default, Extras::values),
-    )(input)
+    )
+    .parse(input)
 }
 
 /// <version core> ::= <major> "." <minor> "." <patch>
@@ -301,10 +302,11 @@ fn version_core(input: &str) -> IResult<&str, (u64, u64, u64), SemverParseError<
     context(
         "version core",
         map(
-            tuple((number, tag("."), number, tag("."), number)),
+            (number, tag("."), number, tag("."), number),
             |(major, _, minor, _, patch)| (major, minor, patch),
         ),
-    )(input)
+    )
+    .parse(input)
 }
 
 // I believe build, pre_release, and identifier are not 100% spec compliant.
@@ -312,21 +314,23 @@ fn build(input: &str) -> IResult<&str, Vec<Identifier>, SemverParseError<&str>> 
     context(
         "build version",
         preceded(tag("+"), separated_list1(tag("."), identifier)),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn pre_release(input: &str) -> IResult<&str, Vec<Identifier>, SemverParseError<&str>> {
     context(
         "pre_release version",
         preceded(opt(tag("-")), separated_list1(tag("."), identifier)),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn identifier(input: &str) -> IResult<&str, Identifier, SemverParseError<&str>> {
     context(
         "identifier",
         map(
-            take_while1(|x: char| is_alphanumeric(x as u8) || x == '-'),
+            take_while1(|x: char| (x as u8).is_alphanum() || x == '-'),
             |s: &str| {
                 str::parse::<u64>(s).map_or_else(
                     |_err| Identifier::AlphaNumeric(s.to_string()),
@@ -334,7 +338,8 @@ fn identifier(input: &str) -> IResult<&str, Identifier, SemverParseError<&str>> 
                 )
             },
         ),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub(crate) fn number(input: &str) -> IResult<&str, u64, SemverParseError<&str>> {
@@ -363,7 +368,8 @@ pub(crate) fn number(input: &str) -> IResult<&str, u64, SemverParseError<&str>> 
 
             Ok(value)
         }),
-    )(input)
+    )
+    .parse(input)
 }
 
 #[cfg(test)]
