@@ -1,5 +1,5 @@
 This crate is a pure Rust-based implementation of JavaScript's
-[`node-semver`](https://npm.im/semver). That is, it's designed to be
+[`node-semver`](https://npmjs.com/semver). That is, it's designed to be
 compatible with Node/NPM's particular flavor of semver (which the [`semver`
 crate](https://crates.io/crates/semver) is not).
 
@@ -12,7 +12,7 @@ converting versions and ranges to strings. Enable `serde` feature to use them.
 For advanced diagnostics with `miette`, enable `miette` feature.
 
 > [!IMPORTANT]
-> This fork is tailored for my use case, e.g. fixing Clippy issues, bumping dependencies and if it's not updated regularly, cherry-picking some PRs that I need. You most likely don't want to use this, so please go to the upstream repository. If you end up using this and if a behaviour is different/unexpected, do NOT create an issue about it in the upstream.
+> This fork is tailored for my use case, e.g. fixing Clippy issues, bumping dependencies and if it's not updated regularly, cherry-picking some PRs that I need. You most likely don't want to use this, so please refer ti the upstream repository. If you end up using this and if a behaviour is different/unexpected, do NOT create an issue about it in the upstream.
 
 ## Usage
 
