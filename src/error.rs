@@ -11,12 +11,11 @@ use thiserror::Error;
 
 use crate::MAX_LENGTH;
 
-/**
-Semver version or range parsing error wrapper.
-
-This wrapper is used to hold some parsing-related metadata, as well as
-a more specific [`SemverErrorKind`].
-*/
+///
+/// Semver version or range parsing error wrapper.
+///
+/// This wrapper is used to hold some parsing-related metadata, as well as
+/// a more specific [`SemverErrorKind`].
 #[derive(Debug, Clone, Error, Eq, PartialEq)]
 #[error("{kind}")]
 pub struct SemverError {
@@ -32,14 +31,14 @@ impl SemverError {
         &self.input
     }
 
-    #[cfg(feature = "miette")]
     /// Returns the [`SourceSpan`] of the error.
+    #[cfg(feature = "miette")]
     pub const fn span(&self) -> &SourceSpan {
         &self.span
     }
 
-    #[cfg(feature = "miette")]
     /// Returns the (0-based) byte offset where the parsing error happened.
+    #[cfg(feature = "miette")]
     pub const fn offset(&self) -> usize {
         self.span.offset()
     }
@@ -52,9 +51,9 @@ impl SemverError {
         &self.kind
     }
 
-    #[cfg(feature = "miette")]
     /// Returns the (0-indexed) line and column number where the parsing error
     /// happened.
+    #[cfg(feature = "miette")]
     pub fn location(&self) -> (usize, usize) {
         // Taken partially from nom.
         let prefix = &self.input.as_bytes()[..self.offset()];
@@ -84,16 +83,12 @@ impl SemverError {
     }
 }
 
-/**
-The specific kind of error that occurred. Usually wrapped in a [`SemverError`].
-*/
+/// The specific kind of error that occurred. Usually wrapped in a [`SemverError`].
 #[derive(Debug, Clone, Error, Eq, PartialEq)]
 #[cfg_attr(feature = "miette", derive(Diagnostic))]
 pub enum SemverErrorKind {
-    /**
-    Semver strings overall can't be longer than [`MAX_LENGTH`]. This is a
-    restriction coming from the JavaScript `node-semver`.
-    */
+    /// Semver strings overall can't be longer than [`MAX_LENGTH`]. This is a
+    /// restriction coming from the JavaScript `node-semver`.
     #[error("Semver string can't be longer than {} characters.", MAX_LENGTH)]
     #[cfg_attr(
         feature = "miette",
@@ -101,12 +96,10 @@ pub enum SemverErrorKind {
     )]
     MaxLengthError,
 
-    /**
-    Input to `node-semver` must be "complete". That is, a version must be
-    composed of major, minor, and patch segments, with optional prerelease
-    and build metadata. If you're looking for alternative syntaxes, like `1.2`,
-    that are meant for defining semver ranges, use [Range] instead.
-    */
+    /// Input to `node-semver` must be "complete". That is, a version must be
+    /// composed of major, minor, and patch segments, with optional prerelease
+    /// and build metadata. If you're looking for alternative syntaxes, like `1.2`,
+    /// that are meant for defining semver ranges, use [Range] instead.
     #[error("Incomplete input to semver parser.")]
     #[cfg_attr(
         feature = "miette",
@@ -114,11 +107,9 @@ pub enum SemverErrorKind {
     )]
     IncompleteInput,
 
-    /**
-    Components of a semver string (major, minor, patch, integer sections of
-    build and prerelease) must all be valid, parseable integers. This error
-    occurs when Rust's own integer parsing failed.
-    */
+    /// Components of a semver string (major, minor, patch, integer sections of
+    /// build and prerelease) must all be valid, parseable integers. This error
+    /// occurs when Rust's own integer parsing failed.
     #[error("Failed to parse an integer component of a semver string: {0}")]
     #[cfg_attr(
         feature = "miette",
@@ -126,21 +117,19 @@ pub enum SemverErrorKind {
     )]
     ParseIntError(ParseIntError),
 
-    /**
-    `node-semver` inherits the JavaScript implementation's limitation on
-    limiting integer component sizes to [`MAX_SAFE_INTEGER`].
-    */
-    #[error("Integer component of semver string is larger than JavaScript's Number.MAX_SAFE_INTEGER: {0}")]
+    /// `node-semver` inherits the JavaScript implementation's limitation on
+    /// limiting integer component sizes to [`MAX_SAFE_INTEGER`].
+    #[error(
+        "Integer component of semver string is larger than JavaScript's Number.MAX_SAFE_INTEGER: {0}"
+    )]
     #[cfg_attr(
         feature = "miette",
         diagnostic(code(node_semver::integer_too_large), url(docsrs))
     )]
     MaxIntError(u64),
 
-    /**
-    This is a generic error that a certain component of the semver string
-    failed to parse.
-    */
+    /// This is a generic error that a certain component of the semver string
+    /// failed to parse.
     #[error("Failed to parse {0}.")]
     #[cfg_attr(
         feature = "miette",
@@ -151,14 +140,18 @@ pub enum SemverErrorKind {
     #[error("No valid ranges could be parsed")]
     #[cfg_attr(
         feature = "miette",
-        diagnostic(code(node_semver::no_valid_ranges), url(docsrs), help("node-semver parses in so-called 'loose' mode. This means that if you have a slightly incorrect semver operator (`>=1.y`, for ex.), it will get thrown away. This error only happens if _all_ your input ranges were invalid semver in this way."))
+        diagnostic(
+            code(node_semver::no_valid_ranges),
+            url(docsrs),
+            help(
+                "node-semver parses in so-called 'loose' mode. This means that if you have a slightly incorrect semver operator (`>=1.y`, for ex.), it will get thrown away. This error only happens if _all_ your input ranges were invalid semver in this way."
+            )
+        )
     )]
     NoValidRanges,
 
-    /**
-    This error is mostly nondescript. Feel free to file an issue if you run
-    into it.
-    */
+    /// This error is mostly nondescript. Feel free to file an issue if you run
+    /// into it.
     #[error("An unspecified error occurred.")]
     #[cfg_attr(feature = "miette", diagnostic(code(node_semver::other), url(docsrs)))]
     Other,
