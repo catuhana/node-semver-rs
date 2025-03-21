@@ -251,25 +251,20 @@ impl Ord for Bound {
             }
             (Upper(Unbounded), _) | (_, Lower(Unbounded)) => Ordering::Greater,
             (Lower(Unbounded), _) | (_, Upper(Unbounded)) => Ordering::Less,
-
-            (Upper(Including(v1)), Upper(Including(v2)))
-            | (Upper(Including(v1)), Lower(Including(v2)))
-            | (Upper(Excluding(v1)), Upper(Excluding(v2)))
-            | (Upper(Excluding(v1)), Lower(Excluding(v2)))
-            | (Lower(Including(v1)), Upper(Including(v2)))
-            | (Lower(Including(v1)), Lower(Including(v2)))
+            (
+                Upper(Including(v1)) | Lower(Including(v1)),
+                Upper(Including(v2)) | Lower(Including(v2)),
+            )
+            | (Upper(Excluding(v1)), Upper(Excluding(v2)) | Lower(Excluding(v2)))
             | (Lower(Excluding(v1)), Lower(Excluding(v2))) => v1.cmp(v2),
-
-            (Lower(Excluding(v1)), Upper(Excluding(v2)))
-            | (Lower(Including(v1)), Upper(Excluding(v2))) => {
+            (Lower(Excluding(v1) | Including(v1)), Upper(Excluding(v2))) => {
                 if v2 <= v1 {
                     Ordering::Greater
                 } else {
                     Ordering::Less
                 }
             }
-            (Upper(Including(v1)), Upper(Excluding(v2)))
-            | (Upper(Including(v1)), Lower(Excluding(v2)))
+            (Upper(Including(v1)), Upper(Excluding(v2)) | Lower(Excluding(v2)))
             | (Lower(Excluding(v1)), Upper(Including(v2))) => {
                 if v2 < v1 {
                     Ordering::Greater
@@ -277,7 +272,6 @@ impl Ord for Bound {
                     Ordering::Less
                 }
             }
-
             (Lower(Excluding(v1)), Lower(Including(v2))) => {
                 if v1 < v2 {
                     Ordering::Less
@@ -1293,7 +1287,7 @@ mod intersection {
             let resulting_range = base.intersect(&other).map(|v| v.to_string());
             assert_eq!(
                 resulting_range.clone(),
-                expected.map(|e| e.to_string()),
+                expected.map(std::string::ToString::to_string),
                 "{} ∩ {} := {}",
                 base,
                 other,
@@ -1427,7 +1421,7 @@ mod difference {
             let resulting_range = base.difference(&other).map(|v| v.to_string());
             assert_eq!(
                 resulting_range.clone(),
-                expected.map(|e| e.to_string()),
+                expected.map(std::string::ToString::to_string),
                 "{} \\ {} := {}",
                 base,
                 other,
@@ -1563,7 +1557,7 @@ mod satisfies_ranges_tests {
     }
 }
 
-/// https://github.com/npm/node-semver/blob/master/test/fixtures/range-parse.js
+/// <https://github.com/npm/node-semver/blob/master/test/fixtures/range-parse.js>
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1714,7 +1708,7 @@ mod ranges {
         )
         .unwrap();
 
-        assert_eq!(r.to_string(), ">=1.2.0 <3.3.4")
+        assert_eq!(r.to_string(), ">=1.2.0 <3.3.4");
     }
 }
 
@@ -1788,9 +1782,7 @@ mod min_version_tests {
             assert_eq!(
                 parsed_range.min_version(),
                 parsed_version,
-                "expected min_version of {:?} to be {:?}",
-                range,
-                version
+                "expected min_version of {range:?} to be {version:?}"
             );
         }
     }
