@@ -12,7 +12,7 @@ use nom::multi::{many_till, separated_list0};
 use nom::sequence::{delimited, preceded, terminated};
 use nom::{Err, IResult, Parser};
 
-use crate::{extras, number, Identifier, SemverError, SemverErrorKind, SemverParseError, Version};
+use crate::{Identifier, SemverError, SemverErrorKind, SemverParseError, Version, extras, number};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 struct BoundSet {
@@ -303,14 +303,12 @@ impl PartialOrd for Bound {
     }
 }
 
-/**
-Node-style semver range.
-
-These ranges map mostly 1:1 to semver's except for some internal representation
-details that allow some more interesting set-level operations.
-
-For details on supported syntax, see <https://github.com/npm/node-semver#advanced-range-syntax>
-*/
+/// Node-style semver range.
+///
+/// These ranges map mostly 1:1 to semver's except for some internal representation
+/// details that allow some more interesting set-level operations.
+///
+/// For details on supported syntax, see <https://github.com/npm/node-semver#advanced-range-syntax>
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Range(Vec<BoundSet>);
 
@@ -328,9 +326,7 @@ impl fmt::Display for Operation {
 }
 
 impl Range {
-    /**
-    Parse a range from a string.
-    */
+    /// Parse a range from a string.
     pub fn parse<S: AsRef<str>>(input: S) -> Result<Self, SemverError> {
         let input = input.as_ref();
 
@@ -359,18 +355,14 @@ impl Range {
         }
     }
 
+    /// Creates a new range that matches any version.
     #[must_use]
-    /**
-    Creates a new range that matches any version.
-    */
     pub fn any() -> Self {
         Self(vec![BoundSet::new(Bound::lower(), Bound::upper()).unwrap()])
     }
 
+    /// Returns true if `version` is satisfied by this range.
     #[must_use]
-    /**
-    Returns true if `version` is satisfied by this range.
-    */
     pub fn satisfies(&self, version: &Version) -> bool {
         for range in &self.0 {
             if range.satisfies(version) {
@@ -381,10 +373,8 @@ impl Range {
         false
     }
 
+    /// Returns true if `other` is a strict superset of this range.
     #[must_use]
-    /**
-    Returns true if `other` is a strict superset of this range.
-    */
     pub fn allows_all(&self, other: &Self) -> bool {
         for this in &self.0 {
             for that in &other.0 {
@@ -397,10 +387,8 @@ impl Range {
         false
     }
 
+    /// Returns true if `other` has overlap with this range.
     #[must_use]
-    /**
-    Returns true if `other` has overlap with this range.
-    */
     pub fn allows_any(&self, other: &Self) -> bool {
         for this in &self.0 {
             for that in &other.0 {
@@ -413,10 +401,8 @@ impl Range {
         false
     }
 
+    /// Returns a new range that is the set-intersection between this range and `other`.
     #[must_use]
-    /**
-    Returns a new range that is the set-intersection between this range and `other`.
-    */
     pub fn intersect(&self, other: &Self) -> Option<Self> {
         let mut sets = Vec::new();
 
@@ -435,10 +421,8 @@ impl Range {
         }
     }
 
+    /// Returns a new range that is the set-difference between this range and `other`.
     #[must_use]
-    /**
-    Returns a new range that is the set-difference between this range and `other`.
-    */
     pub fn difference(&self, other: &Self) -> Option<Self> {
         let mut predicates = Vec::new();
 
@@ -457,10 +441,8 @@ impl Range {
         }
     }
 
+    /// Returns the minimum version that satisfies this range.
     #[must_use]
-    /**
-    Returns the minimum version that satisfies this range.
-    */
     pub fn min_version(&self) -> Option<Version> {
         if let Some(min_bound) = self.0.iter().map(|range| &range.lower).min() {
             match min_bound {
@@ -516,41 +498,38 @@ impl std::str::FromStr for Range {
 }
 
 // ---- Parser ----
-
-/*
-Grammar from https://github.com/npm/node-semver#range-grammar
-
-range-set  ::= range ( logical-or range ) *
-logical-or ::= ( ' ' ) * '||' ( ' ' ) *
-range      ::= hyphen | simple ( ' ' simple ) * | ''
-hyphen     ::= partial ' - ' partial
-simple     ::= primitive | partial | tilde | caret
-primitive  ::= ( '<' | '>' | '>=' | '<=' | '=' ) partial
-partial    ::= xr ( '.' xr ( '.' xr qualifier ? )? )?
-xr         ::= 'x' | 'X' | '*' | nr
-nr         ::= '0' | ['1'-'9'] ( ['0'-'9'] ) *
-tilde      ::= '~' partial
-caret      ::= '^' partial
-qualifier  ::= ( '-' pre )? ( '+' build )?
-pre        ::= parts
-build      ::= parts
-parts      ::= part ( '.' part ) *
-part       ::= nr | [-0-9A-Za-z]+
-
-
-Loose mode (all LHS are invalid in strict mode):
-* 01.02.03 -> 1.2.3
-* 1.2.3alpha -> 1.2.3-alpha
-* v 1.2.3 -> 1.2.3 (v1.2.3 is actually a valid "plain" version)
-* =1.2.3 -> 1.2.3 (already a valid range)
-* - 10 -> >=10.0.0 <11.0.0
-* 1.2.3 foo 4.5.6 -> 1.2.3 4.5.6
-* 1.2.3.4 -> invalid range
-* foo -> invalid range
-* 1.2beta4 -> invalid range
-
-TODO: add tests for all these
-*/
+// Grammar from https://github.com/npm/node-semver#range-grammar
+//
+// range-set  ::= range ( logical-or range ) *
+// logical-or ::= ( ' ' ) * '||' ( ' ' ) *
+// range      ::= hyphen | simple ( ' ' simple ) * | ''
+// hyphen     ::= partial ' - ' partial
+// simple     ::= primitive | partial | tilde | caret
+// primitive  ::= ( '<' | '>' | '>=' | '<=' | '=' ) partial
+// partial    ::= xr ( '.' xr ( '.' xr qualifier ? )? )?
+// xr         ::= 'x' | 'X' | '*' | nr
+// nr         ::= '0' | ['1'-'9'] ( ['0'-'9'] ) *
+// tilde      ::= '~' partial
+// caret      ::= '^' partial
+// qualifier  ::= ( '-' pre )? ( '+' build )?
+// pre        ::= parts
+// build      ::= parts
+// parts      ::= part ( '.' part ) *
+// part       ::= nr | [-0-9A-Za-z]+
+//
+//
+// Loose mode (all LHS are invalid in strict mode):
+// * 01.02.03 -> 1.2.3
+// * 1.2.3alpha -> 1.2.3-alpha
+// * v 1.2.3 -> 1.2.3 (v1.2.3 is actually a valid "plain" version)
+// * =1.2.3 -> 1.2.3 (already a valid range)
+// * - 10 -> >=10.0.0 <11.0.0
+// * 1.2.3 foo 4.5.6 -> 1.2.3 4.5.6
+// * 1.2.3.4 -> invalid range
+// * foo -> invalid range
+// * 1.2beta4 -> invalid range
+//
+// TODO: add tests for all these
 
 // range-set ::= range ( logical-or range ) *
 fn range_set(input: &str) -> IResult<&str, Range, SemverParseError<&str>> {
@@ -1685,18 +1664,16 @@ mod tests {
         consistent2 => [">=1.0.1 <2.0.0-0", ">=1.0.1 <2.0.0-0"],
     ];
 
-    /*
     // And these weirdos that I don't know what to do with.
-    [">X", "<0.0.0-0"],
-    ["<X", "<0.0.0-0"],
-    ["<x <* || >* 2.x", "<0.0.0-0"],
-    */
+    // [">X", "<0.0.0-0"],
+    // ["<X", "<0.0.0-0"],
+    // ["<x <* || >* 2.x", "<0.0.0-0"],
 
     #[cfg(feature = "serde")]
     mod serde_tests {
         use serde_derive::{Deserialize, Serialize};
 
-        use super::{assert_eq, BoundSet, Predicate, Range};
+        use super::{BoundSet, Predicate, Range, assert_eq};
 
         #[derive(Deserialize, Serialize, Eq, PartialEq)]
         struct WithVersionReq {
@@ -1713,10 +1690,9 @@ mod tests {
         #[test]
         fn serialize_a_versionreq_to_string() {
             let output = serde_json::to_string(&WithVersionReq {
-                req: Range(vec![BoundSet::at_most(Predicate::Excluding(
-                    "1.2.3".parse().unwrap(),
-                ))
-                .unwrap()]),
+                req: Range(vec![
+                    BoundSet::at_most(Predicate::Excluding("1.2.3".parse().unwrap())).unwrap(),
+                ]),
             })
             .unwrap();
             let expected: String = r#"{"req":"<1.2.3"}"#.into();

@@ -33,9 +33,7 @@ pub const MAX_SAFE_INTEGER: u64 = 900_719_925_474_099;
 /// Maximum length of a semver string.
 pub const MAX_LENGTH: usize = 256;
 
-/**
-An Identifier type for build and prerelease metadata.
-*/
+/// An Identifier type for build and prerelease metadata.
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Identifier {
     /// An identifier that's solely numbers.
@@ -53,9 +51,7 @@ impl fmt::Display for Identifier {
     }
 }
 
-/**
-A semantic version, conformant to the [semver spec](https://semver.org/spec/v2.0.0.html).
-*/
+/// A semantic version, conformant to the [semver spec](https://semver.org/spec/v2.0.0.html).
 #[derive(Clone, Debug)]
 pub struct Version {
     pub major: u64,
@@ -79,17 +75,21 @@ impl Version {
 
     #[must_use]
     /// True if this [Version] satisfies the given [Range].
+    #[must_use]
     pub fn satisfies(&self, range: &Range) -> bool {
         range.satisfies(self)
     }
 
-    #[must_use]
     /// True is this [Version] has a prerelease component.
+    #[must_use]
     pub fn is_prerelease(&self) -> bool {
         !self.pre_release.is_empty()
     }
 
     /// Parse a semver string into a [Version].
+    ///
+    /// # Errors
+    /// If the input is longer than [`MAX_LENGTH`], or if the input is incomplete.
     pub fn parse<S: AsRef<str>>(input: S) -> Result<Self, SemverError> {
         let input = input.as_ref();
 
@@ -595,7 +595,10 @@ mod tests {
     fn individual_version_component_has_an_upper_bound() {
         let out_of_range = MAX_SAFE_INTEGER + 1;
         let v = Version::parse(format!("1.2.{}", out_of_range));
-        assert_eq!(v.expect_err("Parse should have failed.").to_string(), "Integer component of semver string is larger than JavaScript's Number.MAX_SAFE_INTEGER: 900719925474100");
+        assert_eq!(
+            v.expect_err("Parse should have failed.").to_string(),
+            "Integer component of semver string is larger than JavaScript's Number.MAX_SAFE_INTEGER: 900719925474100"
+        );
     }
 
     #[test]
