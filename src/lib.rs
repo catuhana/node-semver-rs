@@ -28,7 +28,7 @@ mod range;
 /// [MAX_SAFE_INTEGER](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER).
 /// This is used to determine the maximum value for integer components in a
 /// JS-compatible way.
-pub const MAX_SAFE_INTEGER: u64 = 900_719_925_474_099;
+pub const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 
 /// Maximum length of a semver string.
 pub const MAX_LENGTH: usize = 256;
