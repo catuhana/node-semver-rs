@@ -25,8 +25,6 @@ impl<'de> Deserialize<'de> for Range {
         D: Deserializer<'de>,
     {
         struct VersionReqVisitor;
-
-        /// Deserialize `VersionReq` from a string.
         impl Visitor<'_> for VersionReqVisitor {
             type Value = Range;
 
@@ -61,7 +59,6 @@ impl<'de> Deserialize<'de> for Version {
         D: Deserializer<'de>,
     {
         struct IntegrityVisitor;
-
         impl Visitor<'_> for IntegrityVisitor {
             type Value = Version;
 
