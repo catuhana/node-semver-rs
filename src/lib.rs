@@ -532,10 +532,10 @@ mod tests {
         assert_eq!(greater_version.cmp(&lesser_version), Ordering::Greater);
     }
 
+    // Confirms the comparison matches the pre-release comparison example in the SemVer spec.
+    // ie. checks that 1.0.0-alpha < 1.0.0-alpha.1 < 1.0.0-alpha.beta < 1.0.0-beta < 1.0.0-beta.2 < 1.0.0-beta.11 < 1.0.0-rc.1 < 1.0.0.
+    // for simplicity just checks them in order. Assumes that the transitive property holds. So if a < b & b < c then a < c.
     #[test]
-    //confirms the comparison matches the pre-release comparison example in the SemVer spec.
-    //ie checks that 1.0.0-alpha < 1.0.0-alpha.1 < 1.0.0-alpha.beta < 1.0.0-beta < 1.0.0-beta.2 < 1.0.0-beta.11 < 1.0.0-rc.1 < 1.0.0.
-    //for simplicity just checks them in order. Assumes that the transitive property holds. So if a < b & b < c then a < c.
     fn comparison_with_different_pre_release_version() {
         let v1_alpha = Version {
             major: 1,
@@ -608,7 +608,7 @@ mod tests {
         let v = Version::parse(format!("1.2.{out_of_range}"));
         assert_eq!(
             v.expect_err("Parse should have failed.").to_string(),
-            "Integer component of semver string is larger than JavaScript's Number.MAX_SAFE_INTEGER: 900719925474100"
+            "Integer component of semver string is larger than JavaScript's Number.MAX_SAFE_INTEGER: 9007199254740992"
         );
     }
 
