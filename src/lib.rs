@@ -63,18 +63,7 @@ pub struct Version {
 
 impl Version {
     /// Create a [Version] with a major, minor, and patch version.
-    pub const fn new(major: u64, minor: u64, patch: u64) -> Self {
-        Self {
-            major,
-            minor,
-            patch,
-            build: Vec::new(),
-            pre_release: Vec::new(),
-        }
-    }
-
     #[must_use]
-    /// Create a [Version] with a major, minor, and patch version.
     pub const fn new(major: u64, minor: u64, patch: u64) -> Self {
         Self {
             major,
